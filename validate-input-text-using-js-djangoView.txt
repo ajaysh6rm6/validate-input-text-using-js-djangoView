@@ -1,0 +1,64 @@
+HTML>>>
+<div class="inputField" id="div2">
+	<label>Do you have refral code ?</label>
+	<input type="text" placeholder="Referral Code" name="" id="promoCode">
+	<small id="validPromoCodeMsg"></small>
+</div>
+
+JS>>>
+<script>
+    // validate promocode
+    function validatePromoCode() {
+        var input_val = $("#promoCode").val(),
+		csr = $("input[name=csrfmiddlewaretoken").val();
+        mydata = {
+            input_val: input_val,
+            csrfmiddlewaretoken: csr
+        };
+        $.ajax({
+            url: "{% url 'validPromoCode' %}",
+            method: "POST",
+            data: mydata,
+            success: function(data) {
+                status = data.status
+                message = data.msg
+                if (status == '1') {
+                    document.getElementById('promoCode').style.borderColor = "green"
+                    document.getElementById('validPromoCodeMsg').style.color = "green"
+                    $('#validPromoCodeMsg').html(message)
+                } else {
+                    document.getElementById('promoCode').style.borderColor = "red"
+                    document.getElementById('validPromoCodeMsg').style.color = "red"
+                    $('#validPromoCodeMsg').html(message)
+                }
+            },
+        });
+
+    }
+    $('#promoCode').on('paste', validatePromoCode);
+    $("#promoCode").keyup(validatePromoCode);
+</script>
+
+DJANGO VIEW>>>
+# validate promocode
+def validPromoCode(request):
+    data = request.POST.get('input_val')
+    try:
+        promoCode = promoCodeDetails.objects.filter(code = data).first() 
+        print(promoCode)    
+        if promoCode.status == "Active":
+            currentTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(currentTime)
+            promoCodeStartDate = promoCode.startDate.strftime('%Y-%m-%d %H:%M:%S')
+            print(promoCodeStartDate)
+            promoCodeExpiryDate = promoCode.expiryDate.strftime('%Y-%m-%d %H:%M:%S')
+            print(promoCodeExpiryDate)          
+            if promoCodeStartDate <= currentTime <= promoCodeExpiryDate:
+                json_status = {'status':'1', 'msg':'Valid promocode'}
+            else:
+                json_status = {'status':'0', 'msg':'Promocode expired'}
+        else:
+            json_status = {'status':'0', 'msg':'Invalid promocode'}
+    except AttributeError:
+        json_status = {'status':'0', 'msg':'Invalid promocode'}
+    return JsonResponse(json_status)
